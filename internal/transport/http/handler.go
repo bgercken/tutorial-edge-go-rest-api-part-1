@@ -30,22 +30,6 @@ func NewHandler(service *comment.Service) *Handler {
 }
 
 
-// WriteCommentResponse - helper function to write comment in JSON format
-func WriteCommentResponse(w http.ResponseWriter, c comment.Comment) {
-  // Encode the comment in JSON and write to response.
-  if err := json.NewEncoder(w).Encode(c); err != nil {
-    panic(err)
-  }
-}
-
-// WriteCommentsResponse - helper function to write comment(s) in JSON format
-func WriteCommentsResponse(w http.ResponseWriter, c []comment.Comment) {
-  // Encode the comment in JSON and write to response.
-  if err := json.NewEncoder(w).Encode(c); err != nil {
-    panic(err)
-  }
-}
-
 // SetupRoutes - setups all the routes for our application
 func (h *Handler)SetupRoutes() {
   fmt.Println("Setting Up Routes")
@@ -57,7 +41,6 @@ func (h *Handler)SetupRoutes() {
   h.Router.HandleFunc("/api/comment/{id}", h.UpdateComment).Methods("PUT")
   h.Router.HandleFunc("/api/comment/{id}", h.DeleteComment).Methods("DELETE")
 
-
   h.Router.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
     writeStatusOK(w)
     if err := json.NewEncoder(w).Encode(Response{Message: "I am Alive"}); err != nil {
@@ -68,9 +51,6 @@ func (h *Handler)SetupRoutes() {
 
 // GetComment - retrieve a comment by ID
 func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
-
-  writeStatusOK(w)
-
   vars := mux.Vars(r)
   id := vars["id"]
 
@@ -83,45 +63,39 @@ func (h *Handler) GetComment(w http.ResponseWriter, r *http.Request) {
     sendErrorResponse(w, "Error Retrieving Comment By ID", err)
   }
 
-  WriteCommentResponse(w, comment)  // ? what happens to the object comment? -> comment.Comment
+  writeStatusOK(w)
+  writeCommentResponse(w, comment)  // ? what happens to the object comment? -> comment.Comment
 }
 
 // GetAllComments - retrieves all comments from the comment service
 func (h *Handler) GetAllComments(w http.ResponseWriter, r *http.Request) {
-
-  writeStatusOK(w)
-
   comments, err := h.Service.GetAllComments()
   if err != nil {
     sendErrorResponse(w, "Failed to retrieve all comments", err)
   }
-  WriteCommentsResponse(w, comments) 
-  // fmt.Fprintf(w, "%+v", comments)
+
+  writeStatusOK(w)
+  writeCommentsResponse(w, comments) 
 }
 
 // PostComent - adds a new comment
 func (h *Handler) PostComment(w http.ResponseWriter, r *http.Request) {
-
-  writeStatusOK(w)
-
   var comment comment.Comment
   if err := json.NewDecoder(r.Body).Decode(&comment); err != nil {
     sendErrorResponse(w, "Failed to decode JSON Body", err)
   }
 
   comment, err := h.Service.PostComment(comment)
-
   if err != nil {
     sendErrorResponse(w, "Failed to post new comment", err)
   }
-  WriteCommentResponse(w, comment)
+
+  writeStatusOK(w)
+  writeCommentResponse(w, comment)
 }
 
 // UpdateComment - updates a comment by ID
 func (h *Handler) UpdateComment(w http.ResponseWriter, r *http.Request) {
-
-  writeStatusOK(w)
-
   var comment comment.Comment
   if err := json.NewDecoder(r.Body).Decode(&comment); err != nil {
     sendErrorResponse(w, "Failed to decode JSON Body", err)
@@ -135,21 +109,19 @@ func (h *Handler) UpdateComment(w http.ResponseWriter, r *http.Request) {
   }
 
   comment, err = h.Service.UpdateComment(uint(commentID), comment)
-
   if err != nil {
     fmt.Fprintf(w, "")
   }
-  WriteCommentResponse(w, comment)
+
+  writeStatusOK(w)
+  writeCommentResponse(w, comment)
 }
 
 // DeleteComment - deletes a comment by ID
 func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
-
-
   vars := mux.Vars(r)
   id := vars["id"]
   commentID, err := strconv.ParseUint(id, 10, 64)
-
   if err != nil {
     sendErrorResponse(w, "Failed to parse UINT from ID", err)
   }
@@ -162,7 +134,13 @@ func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
   
   writeStatusOK(w)
   writeStringResponse(w, "Comment successfully deleted")
+}
 
+func sendErrorResponse(w http.ResponseWriter, message string, err error) {
+  w.WriteHeader(http.StatusInternalServerError)
+  if err := json.NewEncoder(w).Encode(Response{Message: message, Error: err.Error()}); err != nil {
+    panic(err)
+  }
 }
 
 // writeStatusOK - helper function to send http.StatusOK in JSON format
@@ -173,15 +151,21 @@ func writeStatusOK(w http.ResponseWriter) {
 
 // writeStringResponse - helper function to write results in JSON format
 func writeStringResponse(w http.ResponseWriter, str string) {
-  // Encode the comment in JSON and write to response.
   if err := json.NewEncoder(w).Encode(str); err != nil {
     panic(err)
   }
 }
 
-func sendErrorResponse(w http.ResponseWriter, message string, err error) {
-  w.WriteHeader(http.StatusInternalServerError)
-  if err := json.NewEncoder(w).Encode(Response{Message: message, Error: err.Error()}); err != nil {
+// writeCommentResponse - helper function to write comment in JSON format
+func writeCommentResponse(w http.ResponseWriter, c comment.Comment) {
+  if err := json.NewEncoder(w).Encode(c); err != nil {
+    panic(err)
+  }
+}
+
+// writeCommentsResponse - helper function to write comment(s) in JSON format
+func writeCommentsResponse(w http.ResponseWriter, c []comment.Comment) {
+  if err := json.NewEncoder(w).Encode(c); err != nil {
     panic(err)
   }
 }
